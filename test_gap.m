@@ -1,70 +1,74 @@
-% close all
-% n = 1000;
-% sampleMax = 1000;
-% iterbMax = 3;
-% iteraMax = 8;
-% m = 840;
-% factm = m./(4:-1:2);
-% err = zeros(iteraMax,iterbMax,sampleMax);
-% for sample = 1:sampleMax
-%     rng(sample)
-%     sample
-%     X0 = randn(n,m/2);
-%     X0 = orth(X0);
-% for itera = 1:iteraMax
-%     for iterb = 1:iterbMax
-% 
-%         alpha = 2^(1-itera);
-%         aa = [(0:m-1)*alpha,m+1:n]';
-%         b = factm(iterb);
-%         A = @(X) X.*aa;
-%         X = X0(:,1:b);
-%         Q = Blanczos(A,X,m);
-%         err(itera,iterb,sample) = norm(Q(m+1:n,:)/Q(1:m,:));
-% 
-%     end
-% end
-% end
+close all
+n = 1000;
+sampleMax = 1000;
+iterdMax = 3;
+iteraMax = 10;
+m = 60;
+
+beta = 1e-4;
+err = zeros(iterdMax,iteraMax,sampleMax);
+parfor sample = 1:sampleMax
+    rng(sample)
+    sample
+    X0 = randn(n,m);
+    X0 = orth(X0);
+    for iterd = 1:iterdMax
+        d = iterd+1;
+        b = m/d;
+        for iteralpha = 1:iteraMax
+            
+            aa = [];
+            for ii = 1:d
+                alpha = ii*(2^(-iteralpha)+2*beta)/m;
+                aa = [aa,linspace(alpha-beta,alpha+beta,b)];
+            end
+            aa = [aa,(-n+m:-1)/(n-m)-1]';
+            A = @(X) X.*aa;
+            X = X0(:,1:b);
+            Q = Blanczos(A,X,m);
+            err(iterd,iteralpha,sample) = norm(Q(m+1:n,:)/Q(1:m,:));
+
+        end
+    end
+end
+
 
 stat = genStat(err);
-xx = 2.^(0:-1:1-iteraMax);
+
+
+xx = 2.^(-1:-1:-iteraMax);
 linw = 2;
 figure
 hold on
-color = {'r','b','k'};
-for iterb = 1:iterbMax
-fill([xx, fliplr(xx)], [stat(:,iterb,4)', fliplr(stat(:,iterb,3)')],[0.5 0.5 0.5], 'EdgeColor', 'none','HandleVisibility','off');
-plot(xx,stat(:,iterb,1),[color{iterb},'-'],'LineWidth',linw,'DisplayName',['$d=',num2str(iterbMax-iterb+2),'$'])
-plot(xx,xx.^(iterb-iterbMax-1)*stat(1,iterb,1)/1.1/xx(1).^(-iterb),[color{iterb},'--'],'linewidth',linw,'DisplayName',['$y=c\alpha^{',num2str(iterb-iterbMax-1),'}$'])
+color = {'r','b','k','g'};
+for iterd = 1:iterdMax
+    fill([xx, fliplr(xx)], [stat(iterd,:,3), fliplr(stat(iterd,:,2))],[0.5 0.5 0.5], 'EdgeColor', 'none','HandleVisibility','off');
+    plot(xx,stat(iterd,:,1),[color{iterd},'-'],'LineWidth',linw,'DisplayName',['$d=',num2str(iterd+1),'$'])
+    plot(xx,xx.^(-iterd)*stat(iterd,5,1)/5/xx(5).^(-iterd),[color{iterd},'--'],'linewidth',linw,'DisplayName',['$y\propto\alpha^{',num2str(-iterd),'}$'])
 end
 xlabel('$\alpha$','FontSize',18,'Interpreter','latex');
 hold off
 set(gca,'xscale','log')
 set(gca,'yscale','log')
+legend('FontSize',18,'NumColumns',2,'Interpreter','latex','Location','northeast','Box','off','Orientation', 'horizontal')
+axis([2^(-10),2^-1,1e2,1e20])
 legend('FontSize',18,'Interpreter','latex','Location','northeast','Box','off')
 set(gcf, 'Color', 'w');
 
-export_fig('fig/EPg.pdf')
-export_fig('fig/EPg.eps')
+export_fig('fig/EPgap.pdf')
+export_fig('fig/EPgap.eps')
 
-
+save('datagap')
 
 function stat = genStat(data)
 
 [m1,m2,n] = size(data);
-stat = zeros(m1,m2,4);
-alpha = 0.05;
+stat = zeros(m1,m2,3);
 for ii = 1:m1
     for jj = 1:m2
-    outputs = data(ii,jj,:);
-    mean_value = mean(outputs);
-    std_dev = std(outputs);
-    t_value = tinv(1 - alpha/2, n - 1);
-    sem = std_dev / sqrt(n);
-    stat(ii,jj,1) = mean_value;
-    stat(ii,jj,2) = std_dev;
-    stat(ii,jj,3) = mean_value - t_value * sem;
-    stat(ii,jj,4) = mean_value + t_value * sem;
+        outputs = sort(data(ii,jj,:));
+        idx = round([0.5,0.25,0.75]*n);
+        stat(ii,jj,:) = outputs(idx);
 
     end
 end
