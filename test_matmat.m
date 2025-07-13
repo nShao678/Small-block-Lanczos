@@ -1,9 +1,16 @@
-rng(1)
-n = 1e5;
-b = 8;
-A = sprandsym(n,1e-4);
+iiMax = 10;
+ratio = zeros(1,iiMax);
+for ii = 1:iiMax
+rng(ii)
+n = 1e3;
+b = 16;
+A = randn(n,n);
 x = randn(n,1);
 X = randn(n,b);
 
 
-timeit(@() A*X)/timeit(@() A*x)
+ratio(ii) = timeit(@() A*X)/timeit(@() A*x);
+end
+ratio = sort(ratio);
+
+mean(ratio(2:iiMax-1))
